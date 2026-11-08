@@ -25,7 +25,7 @@ export default function Shop() {
   const [priceRange, setPriceRange] = useState(15000);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [discountOnly, setDiscountOnly] = useState(false);
-  const [sortBy, setSortBy] = useState('featured');
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') === 'newest' ? 'newest' : 'featured');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
 
@@ -35,6 +35,7 @@ export default function Shop() {
     if (cat) setSelectedCategory(cat);
     const search = searchParams.get('search');
     if (search !== null) setSearchTerm(search);
+    setSortBy(searchParams.get('sort') === 'newest' ? 'newest' : 'featured');
   }, [searchParams]);
 
   // Available subcategories for current category

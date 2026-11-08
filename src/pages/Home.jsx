@@ -2,15 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  Sparkles,
-  ShoppingBag,
-  TrendingUp,
-  Flame,
   Star,
-  CheckCircle,
-  Truck,
-  MessageCircle,
-  Clock
+  MessageCircle
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import ProductCard from '../components/ProductCard';
@@ -31,96 +24,46 @@ export default function Home() {
     : bestSellers;
 
   const whatsappInquiryUrl = generateGeneralInquiryUrl(settings.whatsappNumber, settings.shopName);
+  const heroTitle = settings.heroTitle || 'ELEVATE YOUR STYLE. DEFINE YOUR PRESENCE.';
 
   return (
     <div className="space-y-20 pb-16">
       
       {/* 1. HERO SECTION */}
-      <section className="relative min-h-[580px] lg:min-h-[680px] flex items-center justify-center bg-gradient-to-br from-velora-950 via-velora-900 to-velora-950 text-white overflow-hidden">
-        {/* Abstract luxury background glow */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-velora-800/30 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-10 w-80 h-80 bg-rose-950/20 rounded-full blur-3xl pointer-events-none"></div>
+      <section className="velora-home-hero relative isolate flex items-center overflow-hidden bg-[#111111] text-white">
+        <img
+          src="https://images.unsplash.com/photo-1760337741510-1a4661e036fa?auto=format&fit=crop&w=2400&q=85"
+          alt="VELORA fashion collection campaign"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-[center_38%] grayscale"
+        />
+        <div className="absolute inset-0 -z-10 bg-black/15" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/25 to-black/10" />
+        <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-black/35 to-transparent" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          
-          <div className="space-y-6 text-center lg:text-left z-10">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 text-velora-200 text-xs font-semibold tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Modern Luxury &bull; New Season 2026</span>
-            </div>
-
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-black tracking-tight leading-[1.15]">
-              {settings.heroTitle || 'ELEVATE YOUR STYLE'}
+        <div className="relative mx-auto w-full max-w-[1440px] px-6 py-20 sm:px-10 lg:px-16 xl:px-24">
+          <div className="max-w-[540px] text-center md:text-left">
+            <h1 className="text-[2.6rem] font-extrabold uppercase leading-[1.13] tracking-[-0.045em] sm:text-5xl lg:text-[54px]">
+              {heroTitle === 'ELEVATE YOUR STYLE. DEFINE YOUR PRESENCE.'
+                ? <>ELEVATE YOUR<br />STYLE. DEFINE<br />YOUR PRESENCE.</>
+                : heroTitle}
             </h1>
 
-            <p className="text-base sm:text-lg text-velora-300 max-w-xl mx-auto lg:mx-0 font-normal leading-relaxed">
-              {settings.heroSubtitle || 'Discover timeless silhouettes, modern oversized cuts, and contemporary fashion essentials for your everyday wardrobe.'}
-            </p>
+            {settings.heroSubtitle && (
+              <p className="mt-5 max-w-lg text-sm leading-6 text-white/75 sm:text-base">
+                {settings.heroSubtitle}
+              </p>
+            )}
 
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+            <div className="mt-7 flex flex-col items-center justify-center gap-4 sm:flex-row md:justify-start">
               <Link
                 to="/shop"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full bg-white text-velora-950 text-sm font-bold tracking-wider hover:bg-velora-100 transition-all shadow-xl hover:shadow-2xl"
+                className="inline-flex min-w-40 items-center justify-center gap-3 border border-white/90 px-6 py-3 text-[11px] font-bold tracking-[0.16em] text-white transition-colors hover:bg-white hover:text-black"
               >
-                <ShoppingBag className="w-4 h-4" />
-                EXPLORE COLLECTION
+                SHOP NOW
+                <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href={whatsappInquiryUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold tracking-wider transition-all shadow-lg shadow-emerald-950"
-              >
-                <MessageCircle className="w-4 h-4 fill-white" />
-                ORDER ON WHATSAPP
-              </a>
-            </div>
-
-            {/* Quick Metrics */}
-            <div className="pt-8 border-t border-white/10 grid grid-cols-3 gap-6 text-center lg:text-left">
-              <div>
-                <p className="text-2xl font-bold text-white font-serif">{products.length}+</p>
-                <p className="text-xs text-velora-400 font-medium">Curated Styles</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white font-serif">100%</p>
-                <p className="text-xs text-velora-400 font-medium">Premium Cotton</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-white font-serif">2-4 Days</p>
-                <p className="text-xs text-velora-400 font-medium">Islandwide Courier</p>
-              </div>
             </div>
           </div>
-
-          {/* Hero Image Showcase */}
-          <div className="relative flex justify-center lg:justify-end">
-            <div className="relative w-full max-w-md aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10 group">
-              <img
-                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop"
-                alt="VELORA Fashion Collection"
-                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-velora-950/80 via-transparent to-transparent"></div>
-              
-              {/* Floating Banner Card */}
-              <div className="absolute bottom-6 inset-x-6 p-4 rounded-2xl bg-white/90 backdrop-blur-md text-velora-950 border border-white/50 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-rose-600">Special Discount</span>
-                    <h3 className="text-sm font-bold">Up to 30% Off Selected Styles</h3>
-                  </div>
-                  <Link
-                    to="/shop"
-                    className="p-2.5 rounded-full bg-velora-950 text-white hover:bg-velora-800 transition-colors"
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
         </div>
       </section>
 

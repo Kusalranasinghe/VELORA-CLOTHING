@@ -9,6 +9,30 @@
   }
 }
 
+.velora-home-hero {
+  min-height: min(82vh, 700px);
+}
+
+.velora-promo-track {
+  animation: velora-promo-scroll 34s linear infinite;
+}
+
+.velora-promo-bar:hover .velora-promo-track {
+  animation-play-state: paused;
+}
+
+@keyframes velora-promo-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velora-promo-track {
+    animation: none;
+  }
+}
+
 /* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 8px;

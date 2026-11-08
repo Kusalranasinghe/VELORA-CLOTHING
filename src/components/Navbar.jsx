@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
@@ -6,9 +6,8 @@ import {
   Menu,
   X,
   Shield,
-  ShoppingBag,
   ArrowRight,
-  PhoneCall
+  LogIn
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +18,6 @@ export default function Navbar() {
   const { isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const searchInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -49,38 +47,15 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-velora-200 transition-all">
-      {/* Top Announcement Bar */}
-      <div className="bg-velora-950 text-white text-xs py-2 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-medium tracking-wide">
-              {settings.heroTitle || 'NEW COLLECTION 2026'} – Direct WhatsApp Ordering
-            </span>
-          </div>
-          <div className="hidden md:flex items-center gap-6 text-velora-300">
-            <span>{settings.deliveryNote || 'Islandwide Delivery Available'}</span>
-            <Link
-              to="/admin"
-              className="flex items-center gap-1.5 hover:text-white transition-colors text-velora-400 font-medium"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>{isAdmin ? 'Admin Dashboard' : 'Admin Login'}</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+    <header className="sticky top-0 z-40 w-full bg-[#111111] text-white">
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="flex h-[68px] items-center justify-between gap-4 sm:h-[76px]">
           
           {/* Mobile menu trigger */}
           <div className="flex items-center md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-velora-700 hover:text-velora-950 hover:bg-velora-100 focus:outline-none"
+              className="rounded-md p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white focus:outline-none"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -88,48 +63,56 @@ export default function Navbar() {
           </div>
 
           {/* Brand Logo */}
-          <Link to="/" className="flex flex-col items-center group">
-            <span className="text-2xl sm:text-3xl font-serif font-black tracking-widest text-velora-950 group-hover:text-velora-800 transition-colors">
+          <Link to="/" className="group flex flex-col items-center leading-none">
+            <span className="font-serif text-2xl font-black tracking-wide text-white transition-colors group-hover:text-white/80 sm:text-3xl">
               VELORA
             </span>
-            <span className="text-[10px] tracking-[0.3em] font-medium text-velora-500 uppercase -mt-1 group-hover:tracking-[0.35em] transition-all">
-              CLOTHING
+            <span className="mt-1 text-[8px] font-medium uppercase tracking-[0.34em] text-white/55 transition-all group-hover:tracking-[0.4em]">
+              COLLECTION
             </span>
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8">
-            <Link
-              to="/"
-              className={`text-sm font-semibold tracking-wide transition-colors ${
-                location.pathname === '/' ? 'text-velora-950 font-bold' : 'text-velora-600 hover:text-velora-950'
-              }`}
-            >
-              HOME
-            </Link>
+          <nav className="hidden items-center gap-3 md:flex lg:gap-5 xl:gap-8">
             <Link
               to="/shop"
-              className={`text-sm font-semibold tracking-wide transition-colors ${
-                location.pathname === '/shop' ? 'text-velora-950 font-bold' : 'text-velora-600 hover:text-velora-950'
+              className={`text-[11px] font-semibold tracking-[0.12em] transition-colors ${
+                location.pathname === '/shop' ? 'text-white' : 'text-white/65 hover:text-white'
               }`}
             >
               SHOP
             </Link>
             <Link
-              to="/categories"
-              className={`text-sm font-semibold tracking-wide transition-colors ${
-                location.pathname === '/categories' ? 'text-velora-950 font-bold' : 'text-velora-600 hover:text-velora-950'
+              to="/shop?sort=newest"
+              className={`text-[11px] font-semibold tracking-[0.12em] transition-colors ${
+                location.search.includes('sort=newest') ? 'text-white' : 'text-white/65 hover:text-white'
               }`}
             >
-              CATEGORIES
+              NEW
             </Link>
             <Link
-              to="/contact"
-              className={`text-sm font-semibold tracking-wide transition-colors ${
-                location.pathname === '/contact' ? 'text-velora-950 font-bold' : 'text-velora-600 hover:text-velora-950'
+              to="/shop?category=Men"
+              className={`text-[11px] font-semibold tracking-[0.12em] transition-colors ${
+                location.search.includes('category=Men') ? 'text-white' : 'text-white/65 hover:text-white'
               }`}
             >
-              CONTACT
+              MENS
+            </Link>
+            <Link
+              to="/shop?category=Women"
+              className={`text-[11px] font-semibold tracking-[0.12em] transition-colors ${
+                location.search.includes('category=Women') ? 'text-white' : 'text-white/65 hover:text-white'
+              }`}
+            >
+              WOMENS
+            </Link>
+            <Link
+              to="/shop?category=Accessories"
+              className={`text-[11px] font-semibold tracking-[0.12em] transition-colors ${
+                location.search.includes('category=Accessories') ? 'text-white' : 'text-white/65 hover:text-white'
+              }`}
+            >
+              ACCESSORIES
             </Link>
           </nav>
 
@@ -138,25 +121,25 @@ export default function Navbar() {
             
             {/* Search Input Trigger */}
             <div className="relative">
-              <form onSubmit={handleSearchSubmit} className="relative hidden sm:block w-48 lg:w-64">
+              <form onSubmit={handleSearchSubmit} className="relative hidden w-40 sm:block lg:w-48">
                 <input
                   type="text"
-                  placeholder="Search clothing..."
+                  placeholder="SEARCH"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     if (!searchOpen) setSearchOpen(true);
                   }}
                   onFocus={() => setSearchOpen(true)}
-                  className="w-full pl-9 pr-4 py-2 text-xs rounded-full bg-velora-100 border border-transparent focus:border-velora-400 focus:bg-white focus:outline-none transition-all placeholder:text-velora-400"
+                  className="w-full border border-white/15 bg-white/[0.04] py-2 pl-9 pr-3 text-[11px] tracking-[0.12em] text-white transition-colors placeholder:text-white/45 focus:border-white/40 focus:outline-none"
                 />
-                <Search className="w-4 h-4 text-velora-400 absolute left-3 top-2.5" />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/65" />
               </form>
 
               {/* Mobile Search Button */}
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
-                className="p-2 sm:hidden text-velora-700 hover:text-velora-950 hover:bg-velora-100 rounded-full"
+                className="rounded-full p-2 text-white/75 transition-colors hover:bg-white/10 hover:text-white sm:hidden"
                 aria-label="Search"
               >
                 <Search className="w-5 h-5" />
@@ -164,7 +147,7 @@ export default function Navbar() {
 
               {/* Search Instant Results Dropdown */}
               {searchOpen && searchQuery.trim().length > 1 && (
-                <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-velora-200 overflow-hidden z-50 animate-fadeIn">
+                <div className="absolute right-0 z-50 mt-3 w-80 overflow-hidden rounded-xl border border-velora-200 bg-white text-velora-900 shadow-2xl sm:w-96 animate-fadeIn">
                   <div className="p-3 bg-velora-50 border-b border-velora-100 flex items-center justify-between text-xs text-velora-500 font-medium">
                     <span>Products matching "{searchQuery}"</span>
                     <button
@@ -225,7 +208,7 @@ export default function Navbar() {
             {/* Wishlist Link */}
             <Link
               to="/wishlist"
-              className="relative p-2 text-velora-700 hover:text-velora-950 hover:bg-velora-100 rounded-full transition-colors"
+              className="relative rounded-full p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
               aria-label="Wishlist"
             >
               <Heart className="w-5 h-5" />
@@ -236,22 +219,41 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Shop CTA Button (Desktop) */}
             <Link
-              to="/shop"
-              className="hidden lg:inline-flex items-center gap-2 px-4 py-2 rounded-full bg-velora-950 text-white text-xs font-semibold tracking-wider hover:bg-velora-800 transition-all shadow-sm"
+              to={isAdmin ? '/admin' : '/admin/login'}
+              aria-label={isAdmin ? 'Admin dashboard' : 'Log in'}
+              className="flex items-center gap-2 rounded-md p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              EXPLORE
+              {isAdmin ? <Shield className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
+              <span className="hidden text-[10px] font-semibold tracking-wide sm:inline">
+                {isAdmin ? 'ADMIN' : 'LOG IN'}
+              </span>
             </Link>
 
           </div>
         </div>
       </div>
 
+      <div className="velora-promo-bar overflow-hidden border-y border-white/[0.06] bg-[#2a2b2e]">
+        <div className="velora-promo-track flex w-max items-center py-2.5">
+          {[0, 1].map((copy) => (
+            <div key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
+              {[settings.deliveryNote || 'FREE SHIPPING', 'NEW DROP EVERY FRIDAY', 'SHOP THE LATEST COLLECTION', 'EASY WHATSAPP ORDERING'].map((message) => (
+                <span key={`${copy}-${message}`} className="flex items-center">
+                  <span className="px-8 text-[9px] font-bold uppercase tracking-[0.18em] text-white/90 sm:px-12 sm:text-[10px]">
+                    {message}
+                  </span>
+                  <span className="text-white/40" aria-hidden="true">—</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-velora-200 bg-white px-4 pt-4 pb-6 space-y-4 animate-fadeIn">
+        <div className="space-y-4 border-t border-white/10 bg-[#151515] px-4 pb-6 pt-4 text-white md:hidden animate-fadeIn">
           {/* Mobile search bar */}
           <form onSubmit={handleSearchSubmit} className="relative">
             <input
@@ -259,53 +261,65 @@ export default function Navbar() {
               placeholder="Search clothing..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-velora-100 border border-transparent focus:bg-white focus:border-velora-400 focus:outline-none"
+              className="w-full rounded-lg border border-white/15 bg-white/[0.06] py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/45 focus:border-white/40 focus:outline-none"
             />
-            <Search className="w-4 h-4 text-velora-400 absolute left-3.5 top-3.5" />
+            <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-white/55" />
           </form>
 
-          <div className="flex flex-col space-y-3 font-semibold text-sm">
-            <Link
-              to="/"
-              className="py-2 px-3 rounded-lg hover:bg-velora-100 text-velora-800"
-            >
-              Home
-            </Link>
+          <div className="flex flex-col space-y-2 text-sm font-semibold">
             <Link
               to="/shop"
-              className="py-2 px-3 rounded-lg hover:bg-velora-100 text-velora-800"
+              className="rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
-              Shop All Products
+              Shop
             </Link>
             <Link
-              to="/categories"
-              className="py-2 px-3 rounded-lg hover:bg-velora-100 text-velora-800"
+              to="/shop?sort=newest"
+              className="rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
-              Categories
+              New Arrivals
+            </Link>
+            <Link
+              to="/shop?category=Men"
+              className="rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              Menswear
+            </Link>
+            <Link
+              to="/shop?category=Women"
+              className="rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              Womenswear
+            </Link>
+            <Link
+              to="/shop?category=Accessories"
+              className="rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              Accessories
             </Link>
             <Link
               to="/wishlist"
-              className="py-2 px-3 rounded-lg hover:bg-velora-100 text-velora-800 flex items-center justify-between"
+              className="flex items-center justify-between rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
               <span>Wishlist</span>
               {wishlist.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-bold">
+                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold text-black">
                   {wishlist.length}
                 </span>
               )}
             </Link>
             <Link
               to="/contact"
-              className="py-2 px-3 rounded-lg hover:bg-velora-100 text-velora-800"
+              className="rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
               Contact & Store Info
             </Link>
             <Link
-              to="/admin"
-              className="py-2 px-3 rounded-lg bg-velora-100 text-velora-900 flex items-center gap-2"
+              to={isAdmin ? '/admin' : '/admin/login'}
+              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
-              <Shield className="w-4 h-4 text-velora-700" />
-              <span>Admin Portal</span>
+              {isAdmin ? <Shield className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+              <span>{isAdmin ? 'Admin Dashboard' : 'Log in'}</span>
             </Link>
           </div>
         </div>
