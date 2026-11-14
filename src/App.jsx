@@ -10,6 +10,7 @@ import ProductDetails from './pages/ProductDetails';
 import CategoriesPage from './pages/CategoriesPage';
 import Wishlist from './pages/Wishlist';
 import Contact from './pages/Contact';
+import Account from './pages/Account';
 import AdminDashboard from './admin/AdminDashboard';
 import AdminLogin from './admin/AdminLogin';
 
@@ -51,6 +52,7 @@ export default function App() {
               <Route path="/product/:id" element={<ProductDetails />} />
               <Route path="/wishlist" element={<Wishlist />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/account" element={<Account />} />
 
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />

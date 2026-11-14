@@ -1,53 +1,156 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getAppsScriptUrl, postAppsScriptAction } from '../services/api';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
+const SESSION_STORAGE_KEY = 'velora_auth_session';
 
-const ADMIN_STORAGE_KEY = 'velora_admin_token';
-const DEFAULT_ADMIN_PASSWORD = 'admin'; // Easy default for setup & testing
+function getStoredToken() {
+  try {
+    return sessionStorage.getItem(SESSION_STORAGE_KEY) || '';
+  } catch (error) {
+    console.warn('Could not read the sign-in session from this browser.', error);
+    return '';
+  }
+}
+
+function storeToken(token) {
+  try {
+    if (token) sessionStorage.setItem(SESSION_STORAGE_KEY, token);
+    else sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch (error) {
+    throw new Error(`Could not save your sign-in session in this browser: ${error.message}`);
+  }
+}
+
+export function isCustomerProfileComplete(profile) {
+  return ['name', 'address', 'phone', 'nic'].every(
+    (field) => typeof profile?.[field] === 'string' && profile[field].trim().length > 0
+  );
+}
 
 export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [customerProfile, setCustomerProfile] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authToken, setAuthToken] = useState(getStoredToken);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
+  const authConfigured = Boolean(getAppsScriptUrl());
+
+  const applySession = (session) => {
+    setUser({
+      uid: session.user.id,
+      email: session.user.email,
+      displayName: session.user.name
+    });
+    setCustomerProfile(session.user);
+    setIsAdmin(session.user.role === 'admin');
+    setAuthToken(session.token);
+    storeToken(session.token);
+    setAuthError('');
+  };
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem(ADMIN_STORAGE_KEY);
-      if (token === 'authenticated_velora_admin') {
-        setIsAdmin(true);
-      }
-    } catch {
-      setIsAdmin(false);
-    } finally {
+    let active = true;
+    const token = getStoredToken();
+
+    if (!token || !authConfigured) {
       setLoading(false);
+      return () => {
+        active = false;
+      };
     }
-  }, []);
 
-  const login = (password) => {
-    // Check against custom saved password or default
-    const storedPass = localStorage.getItem('velora_admin_custom_pin') || DEFAULT_ADMIN_PASSWORD;
-    if (password === storedPass || password === 'admin' || password === 'velora2026') {
-      localStorage.setItem(ADMIN_STORAGE_KEY, 'authenticated_velora_admin');
-      setIsAdmin(true);
-      return { success: true };
-    }
-    return { success: false, message: 'Invalid Admin Password or PIN' };
+    postAppsScriptAction('getSession', { authToken: token })
+      .then((result) => {
+        if (active) {
+          setUser({
+            uid: result.user.id,
+            email: result.user.email,
+            displayName: result.user.name
+          });
+          setCustomerProfile(result.user);
+          setIsAdmin(result.user.role === 'admin');
+          setAuthToken(token);
+          setAuthError('');
+        }
+      })
+      .catch((error) => {
+        if (active) setAuthError(error.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authConfigured]);
+
+  const register = async (profile) => {
+    const session = await postAppsScriptAction('registerCustomer', { profile });
+    applySession(session);
+    return {
+      customerProfile: session.user,
+      isAdmin: session.user.role === 'admin'
+    };
   };
 
-  const logout = () => {
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
+  const login = async (email, password) => {
+    const session = await postAppsScriptAction('loginCustomer', { email, password });
+    applySession(session);
+    return {
+      customerProfile: session.user,
+      isAdmin: session.user.role === 'admin'
+    };
+  };
+
+  const loginWithGoogle = async (credential) => {
+    const session = await postAppsScriptAction('googleSignIn', { credential });
+    applySession(session);
+    return {
+      customerProfile: session.user,
+      isAdmin: session.user.role === 'admin'
+    };
+  };
+
+  const updateCustomerProfile = async (profile) => {
+    if (!authToken) throw new Error('Sign in before saving your customer details.');
+    const result = await postAppsScriptAction('updateCustomerProfile', {
+      authToken,
+      profile
+    });
+    setCustomerProfile(result.user);
+    setUser((current) => ({ ...current, displayName: result.user.name }));
+  };
+
+  const logout = async () => {
+    storeToken('');
+    setUser(null);
+    setCustomerProfile(null);
     setIsAdmin(false);
-  };
-
-  const changeAdminPin = (newPin) => {
-    if (!newPin || newPin.length < 4) {
-      return { success: false, message: 'PIN must be at least 4 characters' };
-    }
-    localStorage.setItem('velora_admin_custom_pin', newPin);
-    return { success: true };
+    setAuthToken('');
+    setAuthError('');
   };
 
   return (
-    <AuthContext.Provider value={{ isAdmin, login, logout, changeAdminPin, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        customerProfile,
+        isAdmin,
+        authToken,
+        loading,
+        authError,
+        authConfigured,
+        googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+        register,
+        login,
+        loginWithGoogle,
+        updateCustomerProfile,
+        logout
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

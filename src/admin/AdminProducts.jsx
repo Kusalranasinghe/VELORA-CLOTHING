@@ -129,19 +129,26 @@ export default function AdminProducts() {
       stockQuantity: Number(formData.stockQuantity) || 0
     };
 
-    if (editingProduct) {
-      await updateProduct(payload);
-    } else {
-      await addProduct(payload);
+    try {
+      if (editingProduct) {
+        await updateProduct(payload);
+      } else {
+        await addProduct(payload);
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      showToast(error.message || 'Could not save product.', 'error');
     }
-
-    setIsModalOpen(false);
   };
 
   const confirmDelete = async () => {
     if (deleteCandidate) {
-      await deleteProduct(deleteCandidate.id);
-      setDeleteCandidate(null);
+      try {
+        await deleteProduct(deleteCandidate.id);
+        setDeleteCandidate(null);
+      } catch (error) {
+        showToast(error.message || 'Could not delete product.', 'error');
+      }
     }
   };
 

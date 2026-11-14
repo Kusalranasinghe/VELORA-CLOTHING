@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   MessageCircle,
   Heart,
@@ -13,6 +13,7 @@ import {
   Sparkles,
   AlertCircle
 } from 'lucide-react';
+import { isCustomerProfileComplete, useAuth } from '../context/AuthContext';
 import { useShop } from '../context/ShopContext';
 import { formatPrice, generateWhatsAppOrderUrl } from '../utils/whatsapp';
 import ProductCard from '../components/ProductCard';
@@ -20,7 +21,9 @@ import ProductCard from '../components/ProductCard';
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { products, settings, isInWishlist, toggleWishlist, showToast } = useShop();
+  const { user, customerProfile } = useAuth();
 
   const product = products.find(p => String(p.id) === String(id));
 
@@ -84,13 +87,23 @@ export default function ProductDetails() {
       return;
     }
 
+    if (!user || !isCustomerProfileComplete(customerProfile)) {
+      showToast(
+        user ? 'Complete your delivery details before ordering' : 'Sign in or create an account before ordering',
+        'info'
+      );
+      navigate(`/account?returnTo=${encodeURIComponent(location.pathname)}`);
+      return;
+    }
+
     const url = generateWhatsAppOrderUrl({
       product,
       selectedSize,
       selectedColor,
       quantity,
       shopWhatsApp: settings.whatsappNumber,
-      shopName: settings.shopName
+      shopName: settings.shopName,
+      customer: customerProfile
     });
 
     window.open(url, '_blank', 'noopener,noreferrer');

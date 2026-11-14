@@ -15,7 +15,7 @@ import { formatPrice } from '../utils/whatsapp';
 
 export default function Navbar() {
   const { products, settings, wishlist, searchQuery, setSearchQuery } = useShop();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
@@ -220,13 +220,13 @@ export default function Navbar() {
             </Link>
 
             <Link
-              to={isAdmin ? '/admin' : '/admin/login'}
-              aria-label={isAdmin ? 'Admin dashboard' : 'Log in'}
+              to={isAdmin ? '/admin' : '/account'}
+              aria-label={isAdmin ? 'Admin dashboard' : user ? 'Your account' : 'Sign in'}
               className="flex items-center gap-2 rounded-md p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
             >
               {isAdmin ? <Shield className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
               <span className="hidden text-[10px] font-semibold tracking-wide sm:inline">
-                {isAdmin ? 'ADMIN' : 'LOG IN'}
+                {isAdmin ? 'ADMIN' : user ? 'ACCOUNT' : 'LOG IN'}
               </span>
             </Link>
 
@@ -315,11 +315,11 @@ export default function Navbar() {
               Contact & Store Info
             </Link>
             <Link
-              to={isAdmin ? '/admin' : '/admin/login'}
+              to={isAdmin ? '/admin' : '/account'}
               className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-white/80 hover:bg-white/10 hover:text-white"
             >
               {isAdmin ? <Shield className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-              <span>{isAdmin ? 'Admin Dashboard' : 'Log in'}</span>
+              <span>{isAdmin ? 'Admin Dashboard' : user ? 'My Account' : 'Log in / Register'}</span>
             </Link>
           </div>
         </div>

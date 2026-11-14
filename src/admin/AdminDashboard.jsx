@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
@@ -18,22 +18,27 @@ import { useShop } from '../context/ShopContext';
 import AdminProducts from './AdminProducts';
 import AdminCategories from './AdminCategories';
 import AdminSettings from './AdminSettings';
-import AdminLogin from './AdminLogin';
 
 export default function AdminDashboard() {
-  const { isAdmin, logout } = useAuth();
-  const { products, categories, settings, dataSource, refreshData } = useShop();
+  const { isAdmin, logout, loading } = useAuth();
+  const { products, categories, settings, dataSource, refreshData, showToast } = useShop();
   const [activeTab, setActiveTab] = useState('products'); // 'overview' | 'products' | 'categories' | 'settings'
   const navigate = useNavigate();
-
-  // If not authenticated, render Login component directly
-  if (!isAdmin) {
-    return <AdminLogin />;
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-velora-500">Checking admin access...</div>;
   }
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  if (!isAdmin) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      showToast(error.message || 'Could not sign out.', 'error');
+    }
   };
 
   return (

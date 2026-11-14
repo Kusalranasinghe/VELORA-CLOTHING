@@ -8,10 +8,12 @@ import {
   saveSettings as apiSaveSettings
 } from '../services/api';
 import { INITIAL_SETTINGS } from '../services/mockData';
+import { useAuth } from './AuthContext';
 
 const ShopContext = createContext();
 
 export function ShopProvider({ children }) {
+  const { isAdmin, authToken } = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [settings, setSettings] = useState(INITIAL_SETTINGS);
@@ -79,51 +81,58 @@ export function ShopProvider({ children }) {
 
   const isInWishlist = (productId) => wishlist.includes(productId);
 
+  const getAdminAuthToken = () => {
+    if (!authToken || !isAdmin) {
+      throw new Error('You must sign in with an admin account before changing store data.');
+    }
+    return authToken;
+  };
+
   // Admin Actions
   const handleAddProduct = async (productData) => {
-    const res = await saveProduct(productData, true);
+    const res = await saveProduct(productData, true, getAdminAuthToken());
     setProducts(res.products);
     showToast('Product added successfully!');
     return res;
   };
 
   const handleUpdateProduct = async (productData) => {
-    const res = await saveProduct(productData, false);
+    const res = await saveProduct(productData, false, getAdminAuthToken());
     setProducts(res.products);
     showToast('Product updated successfully!');
     return res;
   };
 
   const handleDeleteProduct = async (productId) => {
-    const res = await apiDeleteProduct(productId);
+    const res = await apiDeleteProduct(productId, getAdminAuthToken());
     setProducts(res.products);
     showToast('Product removed!');
     return res;
   };
 
   const handleAddCategory = async (catData) => {
-    const res = await saveCategory(catData, true);
+    const res = await saveCategory(catData, true, getAdminAuthToken());
     setCategories(res.categories);
     showToast('Category added!');
     return res;
   };
 
   const handleUpdateCategory = async (catData) => {
-    const res = await saveCategory(catData, false);
+    const res = await saveCategory(catData, false, getAdminAuthToken());
     setCategories(res.categories);
     showToast('Category updated!');
     return res;
   };
 
   const handleDeleteCategory = async (catId) => {
-    const res = await apiDeleteCategory(catId);
+    const res = await apiDeleteCategory(catId, getAdminAuthToken());
     setCategories(res.categories);
     showToast('Category deleted!');
     return res;
   };
 
   const handleUpdateSettings = async (newSettings) => {
-    const res = await apiSaveSettings(newSettings);
+    const res = await apiSaveSettings(newSettings, getAdminAuthToken());
     setSettings(res.settings);
     showToast('Store settings updated!');
     return res;

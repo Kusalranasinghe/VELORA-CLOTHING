@@ -53,19 +53,26 @@ export default function AdminCategories() {
       slug: formData.name.toLowerCase().replace(/\s+/g, '-')
     };
 
-    if (editingCategory) {
-      await updateCategory(payload);
-    } else {
-      await addCategory(payload);
+    try {
+      if (editingCategory) {
+        await updateCategory(payload);
+      } else {
+        await addCategory(payload);
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      showToast(error.message || 'Could not save category.', 'error');
     }
-
-    setIsModalOpen(false);
   };
 
   const confirmDelete = async () => {
     if (deleteCandidate) {
-      await deleteCategory(deleteCandidate.id);
-      setDeleteCandidate(null);
+      try {
+        await deleteCategory(deleteCandidate.id);
+        setDeleteCandidate(null);
+      } catch (error) {
+        showToast(error.message || 'Could not delete category.', 'error');
+      }
     }
   };
 

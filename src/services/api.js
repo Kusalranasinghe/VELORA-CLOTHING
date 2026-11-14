@@ -24,6 +24,40 @@ function setLocalData(key, data) {
   }
 }
 
+export async function postAppsScriptAction(action, payload = {}) {
+  const url = getAppsScriptUrl();
+  if (!url) {
+    throw new Error('Google Sheets authentication is not configured. Follow GOOGLE_SHEETS_AUTH_SETUP.md.');
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...payload })
+  });
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error('Google Apps Script returned an unreadable response. Check that the latest web app version is deployed.');
+  }
+
+  if (!response.ok || result.status !== 'success') {
+    const error = new Error(result.message || `Google Sheets rejected the ${action} request.`);
+    error.code = result.code;
+    throw error;
+  }
+
+  return result.data;
+}
+
+async function syncAdminMutation(url, action, payload, authToken) {
+  if (!authToken) {
+    throw new Error('Admin sign-in is required before changing store data.');
+  }
+  await postAppsScriptAction(action, { ...payload, authToken });
+}
+
 // Get configured Apps Script URL
 export function getAppsScriptUrl() {
   const envUrl = import.meta.env.VITE_APPS_SCRIPT_URL;
@@ -74,11 +108,9 @@ export async function fetchStoreData() {
 /**
  * Product CRUD
  */
-export async function saveProduct(product, isNew = true) {
+export async function saveProduct(product, isNew = true, authToken) {
   const url = getAppsScriptUrl();
   const action = isNew ? 'addProduct' : 'updateProduct';
-
-  // 1. Update local storage first for instant responsive UI
   const products = getLocalData(LOCAL_STORAGE_PRODUCTS, INITIAL_PRODUCTS);
   let updatedProducts;
   if (isNew) {
@@ -90,52 +122,32 @@ export async function saveProduct(product, isNew = true) {
   } else {
     updatedProducts = products.map(p => (p.id === product.id ? { ...p, ...product } : p));
   }
-  setLocalData(LOCAL_STORAGE_PRODUCTS, updatedProducts);
 
-  // 2. If Google Apps Script is configured, sync to Google Sheets
   if (url) {
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, data: product })
-      });
-    } catch (err) {
-      console.error('Failed to sync product with Google Sheet:', err);
-    }
+    await syncAdminMutation(url, action, { data: isNew ? updatedProducts[0] : product }, authToken);
   }
 
+  setLocalData(LOCAL_STORAGE_PRODUCTS, updatedProducts);
   return { success: true, products: updatedProducts };
 }
 
-export async function deleteProduct(productId) {
+export async function deleteProduct(productId, authToken) {
   const url = getAppsScriptUrl();
-
-  // 1. Remove from local storage
   const products = getLocalData(LOCAL_STORAGE_PRODUCTS, INITIAL_PRODUCTS);
   const updatedProducts = products.filter(p => p.id !== productId);
-  setLocalData(LOCAL_STORAGE_PRODUCTS, updatedProducts);
 
-  // 2. Sync to Google Sheets
   if (url) {
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'deleteProduct', id: productId })
-      });
-    } catch (err) {
-      console.error('Failed to delete product from Google Sheet:', err);
-    }
+    await syncAdminMutation(url, 'deleteProduct', { id: productId }, authToken);
   }
 
+  setLocalData(LOCAL_STORAGE_PRODUCTS, updatedProducts);
   return { success: true, products: updatedProducts };
 }
 
 /**
  * Category CRUD
  */
-export async function saveCategory(category, isNew = true) {
+export async function saveCategory(category, isNew = true, authToken) {
   const url = getAppsScriptUrl();
   const action = isNew ? 'addCategory' : 'updateCategory';
 
@@ -150,66 +162,44 @@ export async function saveCategory(category, isNew = true) {
   } else {
     updatedCategories = categories.map(c => (c.id === category.id ? { ...c, ...category } : c));
   }
-  setLocalData(LOCAL_STORAGE_CATEGORIES, updatedCategories);
-
   if (url) {
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, data: category })
-      });
-    } catch (err) {
-      console.error('Failed to sync category with Google Sheet:', err);
-    }
+    await syncAdminMutation(
+      url,
+      action,
+      { data: isNew ? updatedCategories[updatedCategories.length - 1] : category },
+      authToken
+    );
   }
 
+  setLocalData(LOCAL_STORAGE_CATEGORIES, updatedCategories);
   return { success: true, categories: updatedCategories };
 }
 
-export async function deleteCategory(categoryId) {
+export async function deleteCategory(categoryId, authToken) {
   const url = getAppsScriptUrl();
 
   const categories = getLocalData(LOCAL_STORAGE_CATEGORIES, INITIAL_CATEGORIES);
   const updatedCategories = categories.filter(c => c.id !== categoryId);
-  setLocalData(LOCAL_STORAGE_CATEGORIES, updatedCategories);
-
   if (url) {
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'deleteCategory', id: categoryId })
-      });
-    } catch (err) {
-      console.error('Failed to delete category from Google Sheet:', err);
-    }
+    await syncAdminMutation(url, 'deleteCategory', { id: categoryId }, authToken);
   }
 
+  setLocalData(LOCAL_STORAGE_CATEGORIES, updatedCategories);
   return { success: true, categories: updatedCategories };
 }
 
 /**
  * Settings CRUD
  */
-export async function saveSettings(settings) {
+export async function saveSettings(settings, authToken) {
   const url = getAppsScriptUrl();
 
   const current = getLocalData(LOCAL_STORAGE_SETTINGS, INITIAL_SETTINGS);
   const updatedSettings = { ...current, ...settings };
-  setLocalData(LOCAL_STORAGE_SETTINGS, updatedSettings);
-
   if (url) {
-    try {
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'updateSettings', data: settings })
-      });
-    } catch (err) {
-      console.error('Failed to sync settings with Google Sheet:', err);
-    }
+    await syncAdminMutation(url, 'updateSettings', { data: settings }, authToken);
   }
 
+  setLocalData(LOCAL_STORAGE_SETTINGS, updatedSettings);
   return { success: true, settings: updatedSettings };
 }

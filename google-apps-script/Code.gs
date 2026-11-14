@@ -9,13 +9,15 @@
  * 2. Click Extensions -> Apps Script.
  * 3. Delete any default code, paste this entire file, and click Save (Ctrl + S).
  * 4. Run the 'setupSheets' function once from the dropdown to create headers & demo data.
- * 5. Click 'Deploy' -> 'New deployment'.
+ * 5. In Project Settings -> Script properties, add GOOGLE_OAUTH_CLIENT_ID if
+ *    Google sign-in is enabled. Never put passwords or signing secrets in the sheet.
+ * 6. Click 'Deploy' -> 'New deployment'.
  *    - Select type: 'Web app'
  *    - Description: 'VELORA Clothing API v1'
  *    - Execute as: 'Me'
- *    - Who has access: 'Anyone' (IMPORTANT!)
- * 6. Click 'Deploy', authorize permissions, and copy the Web App URL.
- * 7. Paste that URL into your React project's .env file:
+ *    - Who has access: 'Anyone' (store reads are public; writes require an admin session)
+ * 7. Click 'Deploy', authorize permissions, and copy the Web App URL.
+ * 8. Paste that URL into your React project's .env file:
  *    VITE_APPS_SCRIPT_URL=https://script.google.com/macros/s/.../exec
  * =========================================================================
  */
@@ -63,6 +65,18 @@ function setupSheets() {
     sSheet.appendRow(["deliveryNote", "Islandwide Cash on Delivery & Bank Transfer Available"]);
   }
 
+  var uSheet = ss.getSheetByName("Users");
+  if (!uSheet) {
+    uSheet = ss.insertSheet("Users");
+  }
+  if (uSheet.getLastRow() === 0) {
+    uSheet.appendRow([
+      "id", "email", "name", "address", "phone", "nic", "passwordSalt",
+      "passwordHash", "passwordIterations", "role", "authProvider",
+      "createdAt", "updatedAt", "failedAttempts", "lockedUntil"
+    ]);
+  }
+
   return "Setup completed successfully!";
 }
 
@@ -103,6 +117,24 @@ function doPost(e) {
     }
     var action = body.action || (e.parameter && e.parameter.action);
 
+    if (action === "registerCustomer") {
+      return respondJson_({ status: "success", data: registerCustomer_(body) });
+    }
+    if (action === "loginCustomer") {
+      return respondJson_({ status: "success", data: loginCustomer_(body.email, body.password) });
+    }
+    if (action === "googleSignIn") {
+      return respondJson_({ status: "success", data: googleSignIn_(body.credential) });
+    }
+    if (action === "getSession") {
+      return respondJson_({ status: "success", data: getSession_(body.authToken) });
+    }
+    if (action === "updateCustomerProfile") {
+      return respondJson_({ status: "success", data: updateCustomerProfile_(body.authToken, body.profile) });
+    }
+
+    requireAdminSession_(body.authToken);
+
     var result = {};
 
     switch (action) {
@@ -141,6 +173,287 @@ function doPost(e) {
   } catch (err) {
     return respondJson_({ status: "error", message: err.toString() });
   }
+}
+
+var PASSWORD_HASH_ITERATIONS_ = 10000;
+var MAX_LOGIN_FAILURES_ = 5;
+var LOGIN_LOCKOUT_MILLIS_ = 15 * 60 * 1000;
+var SESSION_LIFETIME_SECONDS_ = 12 * 60 * 60;
+
+function registerCustomer_(body) {
+  var profile = body.profile || {};
+  var email = normalizeEmail_(profile.email);
+  var password = String(profile.password || "");
+  var name = String(profile.name || "").trim();
+  var address = String(profile.address || "").trim();
+  var phone = String(profile.phone || "").trim();
+  var nic = String(profile.nic || "").trim();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address.");
+  if (password.length < 8) throw new Error("Choose a password with at least 8 characters.");
+  if (password.length > 128) throw new Error("Password must be 128 characters or fewer.");
+  if (!name || !address || !phone || !nic) throw new Error("Complete all customer and delivery details.");
+  if (name.length > 120 || address.length > 500 || phone.length > 40 || nic.length > 40) {
+    throw new Error("One or more customer details are too long.");
+  }
+
+  var salt = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
+  var passwordHash = passwordHash_(password, salt, PASSWORD_HASH_ITERATIONS_);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getUsersSheet_();
+    if (findUserRowByEmail_(sheet, email)) throw new Error("An account already exists for this email. Sign in instead.");
+    var id = Utilities.getUuid();
+    var now = new Date();
+    sheet.appendRow([
+      id, email, safeSheetText_(name), safeSheetText_(address), safeSheetText_(phone),
+      safeSheetText_(nic), salt, passwordHash, PASSWORD_HASH_ITERATIONS_,
+      "customer", "password", now, now, 0, ""
+    ]);
+    return createSession_(readUserById_(sheet, id));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function loginCustomer_(emailValue, passwordValue) {
+  var email = normalizeEmail_(emailValue);
+  var password = String(passwordValue || "");
+  if (password.length > 128) throw new Error("Email or password is incorrect.");
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getUsersSheet_();
+    var match = findUserRowByEmail_(sheet, email);
+    if (!match || !match.values[7] || !match.values[6]) {
+      throw new Error("Email or password is incorrect.");
+    }
+
+    var lockUntil = match.values[14] ? new Date(match.values[14]).getTime() : 0;
+    if (lockUntil > Date.now()) throw new Error("Email or password is incorrect. Try again later.");
+
+    var iterations = Math.max(1000, Number(match.values[8]) || PASSWORD_HASH_ITERATIONS_);
+    var candidate = passwordHash_(password, String(match.values[6]), iterations);
+    if (!constantTimeEquals_(candidate, String(match.values[7]))) {
+      var failures = Number(match.values[13]) || 0;
+      failures++;
+      sheet.getRange(match.row, 14).setValue(failures);
+      sheet.getRange(match.row, 15).setValue(
+        failures >= MAX_LOGIN_FAILURES_ ? new Date(Date.now() + LOGIN_LOCKOUT_MILLIS_) : ""
+      );
+      throw new Error("Email or password is incorrect.");
+    }
+
+    sheet.getRange(match.row, 14, 1, 2).setValues([[0, ""]]);
+    var user = userFromRow_(match.values);
+    return createSession_(user);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function googleSignIn_(credential) {
+  var clientId = PropertiesService.getScriptProperties().getProperty("GOOGLE_OAUTH_CLIENT_ID");
+  if (!clientId) throw new Error("Google sign-in is not configured. Add GOOGLE_OAUTH_CLIENT_ID in Apps Script properties.");
+  if (!credential) throw new Error("Google sign-in did not return a credential.");
+
+  var response = UrlFetchApp.fetch(
+    "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(String(credential)),
+    { muteHttpExceptions: true }
+  );
+  if (response.getResponseCode() !== 200) throw new Error("Google could not verify this sign-in. Please try again.");
+  var identity = JSON.parse(response.getContentText());
+  if (identity.aud !== clientId || String(identity.email_verified) !== "true" || !identity.email) {
+    throw new Error("Google could not verify this sign-in. Please try again.");
+  }
+
+  var email = normalizeEmail_(identity.email);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sheet = getUsersSheet_();
+    var match = findUserRowByEmail_(sheet, email);
+    if (match) {
+      sheet.getRange(match.row, 11).setValue("password,google");
+      return createSession_(userFromRow_(match.values));
+    }
+
+    var id = Utilities.getUuid();
+    var now = new Date();
+    var name = String(identity.name || "").trim();
+    sheet.appendRow([
+      id, email, safeSheetText_(name), "", "", "", "", "", "",
+      "customer", "google", now, now, 0, ""
+    ]);
+    return createSession_(readUserById_(sheet, id));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getSession_(authToken) {
+  var tokenData = verifySessionToken_(authToken);
+  var user = readUserById_(getUsersSheet_(), tokenData.uid);
+  if (!user) throw new Error("Your session has expired. Please sign in again.");
+  return { user: user };
+}
+
+function updateCustomerProfile_(authToken, profile) {
+  var tokenData = verifySessionToken_(authToken);
+  profile = profile || {};
+  var name = String(profile.name || "").trim();
+  var address = String(profile.address || "").trim();
+  var phone = String(profile.phone || "").trim();
+  var nic = String(profile.nic || "").trim();
+  if (!name || !address || !phone || !nic) throw new Error("Complete all customer and delivery details.");
+  if (name.length > 120 || address.length > 500 || phone.length > 40 || nic.length > 40) {
+    throw new Error("One or more customer details are too long.");
+  }
+
+  var sheet = getUsersSheet_();
+  var match = findUserRowById_(sheet, tokenData.uid);
+  if (!match) throw new Error("Your session has expired. Please sign in again.");
+  sheet.getRange(match.row, 3, 1, 4).setValues([[
+    safeSheetText_(name), safeSheetText_(address), safeSheetText_(phone), safeSheetText_(nic)
+  ]]);
+  sheet.getRange(match.row, 13).setValue(new Date());
+  return { user: userFromRow_(match.values, [name, address, phone, nic]) };
+}
+
+function requireAdminSession_(authToken) {
+  var tokenData = verifySessionToken_(authToken);
+  var match = findUserRowById_(getUsersSheet_(), tokenData.uid);
+  if (!match || String(match.values[9]).toLowerCase() !== "admin") {
+    throw new Error("This account does not have admin access.");
+  }
+}
+
+function createSession_(user) {
+  var now = Math.floor(Date.now() / 1000);
+  var payload = { uid: user.id, iat: now, exp: now + SESSION_LIFETIME_SECONDS_ };
+  var encodedPayload = base64UrlEncode_(JSON.stringify(payload));
+  var unsignedToken = encodedPayload;
+  var signature = Utilities.computeHmacSha256Signature(unsignedToken, getAuthSigningSecret_());
+  return {
+    token: unsignedToken + "." + base64UrlEncode_(signature),
+    user: user
+  };
+}
+
+function verifySessionToken_(authToken) {
+  var parts = String(authToken || "").split(".");
+  if (parts.length !== 2) throw new Error("Your session has expired. Please sign in again.");
+  var expected = base64UrlEncode_(Utilities.computeHmacSha256Signature(parts[0], getAuthSigningSecret_()));
+  if (!constantTimeEquals_(expected, parts[1])) throw new Error("Your session has expired. Please sign in again.");
+
+  var payload;
+  try {
+    payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString());
+  } catch (error) {
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+  if (!payload.uid || Number(payload.exp) <= Math.floor(Date.now() / 1000)) {
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+  return payload;
+}
+
+function getAuthSigningSecret_() {
+  var properties = PropertiesService.getScriptProperties();
+  var secret = properties.getProperty("AUTH_SIGNING_SECRET");
+  if (!secret) {
+    secret = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid();
+    properties.setProperty("AUTH_SIGNING_SECRET", secret);
+  }
+  return secret;
+}
+
+function passwordHash_(password, salt, iterations) {
+  var digest = Utilities.computeHmacSha256Signature(salt + ":VELORA-AUTH-V1", password);
+  var result = digest.slice();
+  for (var i = 1; i < iterations; i++) {
+    digest = Utilities.computeHmacSha256Signature(Utilities.base64Encode(digest), password);
+    for (var j = 0; j < result.length; j++) {
+      var combined = (result[j] ^ digest[j]) & 255;
+      result[j] = combined > 127 ? combined - 256 : combined;
+    }
+  }
+  return Utilities.base64Encode(result);
+}
+
+function constantTimeEquals_(left, right) {
+  if (left.length !== right.length) return false;
+  var difference = 0;
+  for (var i = 0; i < left.length; i++) difference |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  return difference === 0;
+}
+
+function base64UrlEncode_(value) {
+  var encoded = value instanceof Array
+    ? Utilities.base64EncodeWebSafe(value)
+    : Utilities.base64EncodeWebSafe(value, Utilities.Charset.UTF_8);
+  return encoded.replace(/=+$/g, "");
+}
+
+function normalizeEmail_(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getUsersSheet_() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Users");
+  if (!sheet || sheet.getLastRow() === 0) {
+    throw new Error("Users sheet is not set up. Run setupSheets in Apps Script first.");
+  }
+  return sheet;
+}
+
+function findUserRowByEmail_(sheet, email) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  var rows = sheet.getRange(2, 1, lastRow - 1, 15).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizeEmail_(rows[i][1]) === email) return { row: i + 2, values: rows[i] };
+  }
+  return null;
+}
+
+function findUserRowById_(sheet, id) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  var rows = sheet.getRange(2, 1, lastRow - 1, 15).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(id)) return { row: i + 2, values: rows[i] };
+  }
+  return null;
+}
+
+function readUserById_(sheet, id) {
+  var match = findUserRowById_(sheet, id);
+  return match ? userFromRow_(match.values) : null;
+}
+
+function userFromRow_(row, profileOverride) {
+  var profile = profileOverride || [row[2], row[3], row[4], row[5]];
+  return {
+    id: String(row[0]),
+    email: userText_(row[1]),
+    name: userText_(profile[0]),
+    address: userText_(profile[1]),
+    phone: userText_(profile[2]),
+    nic: userText_(profile[3]),
+    role: String(row[9] || "customer")
+  };
+}
+
+function userText_(value) {
+  var text = String(value || "");
+  return /^'[=+\-@]/.test(text) ? text.substring(1) : text;
+}
+
+function safeSheetText_(value) {
+  var text = String(value || "");
+  return /^[=+\-@]/.test(text) ? "'" + text : text;
 }
 
 // --- HELPER FUNCTIONS ---

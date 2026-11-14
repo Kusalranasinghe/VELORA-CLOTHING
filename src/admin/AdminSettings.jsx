@@ -9,23 +9,16 @@ import {
   MapPin,
   Mail,
   RefreshCw,
-  ExternalLink,
-  ShieldAlert
+  ExternalLink
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
-import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 export default function AdminSettings() {
   const { settings, updateSettings, dataSource, refreshData, showToast } = useShop();
-  const { changeAdminPin } = useAuth();
-
   const [formData, setFormData] = useState({ ...settings });
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState(null);
-
-  const [newPin, setNewPin] = useState('');
-  const [pinMessage, setPinMessage] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -34,8 +27,12 @@ export default function AdminSettings() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    await updateSettings(formData);
-    showToast('Store settings saved successfully!');
+    try {
+      await updateSettings(formData);
+      showToast('Store settings saved successfully!');
+    } catch (error) {
+      showToast(error.message || 'Could not save store settings.', 'error');
+    }
   };
 
   const handleTestConnection = async () => {
@@ -76,18 +73,6 @@ export default function AdminSettings() {
       });
     } finally {
       setTestingConnection(false);
-    }
-  };
-
-  const handlePinUpdate = (e) => {
-    e.preventDefault();
-    const res = changeAdminPin(newPin);
-    if (res.success) {
-      setPinMessage('Admin PIN successfully updated!');
-      setNewPin('');
-      showToast('Admin PIN updated!');
-    } else {
-      setPinMessage(res.message);
     }
   };
 
@@ -330,39 +315,6 @@ export default function AdminSettings() {
         </div>
 
       </form>
-
-      {/* 4. Admin Security PIN Change */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-velora-200 shadow-sm space-y-5">
-        <div className="border-b border-velora-100 pb-3">
-          <h3 className="text-base font-serif font-bold text-velora-950 flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-velora-700" />
-            Change Admin Access Password / PIN
-          </h3>
-          <p className="text-xs text-velora-500 mt-1">
-            Update the credentials required to log in to this admin dashboard.
-          </p>
-        </div>
-
-        <form onSubmit={handlePinUpdate} className="flex flex-col sm:flex-row gap-3 max-w-md">
-          <input
-            type="password"
-            placeholder="Enter new PIN or password..."
-            value={newPin}
-            onChange={(e) => setNewPin(e.target.value)}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-velora-50 border border-velora-200 text-xs focus:outline-none focus:border-velora-900"
-          />
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-xl bg-velora-900 text-white text-xs font-bold uppercase tracking-wider hover:bg-velora-800 transition-colors"
-          >
-            Update PIN
-          </button>
-        </form>
-
-        {pinMessage && (
-          <p className="text-xs font-semibold text-emerald-600">{pinMessage}</p>
-        )}
-      </div>
 
     </div>
   );

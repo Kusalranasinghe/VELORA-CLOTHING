@@ -33,7 +33,8 @@ export function generateWhatsAppOrderUrl({
   selectedColor,
   quantity = 1,
   shopWhatsApp = '94771234567',
-  shopName = 'VELORA CLOTHING'
+  shopName = 'VELORA CLOTHING',
+  customer
 }) {
   const phone = cleanPhoneNumber(shopWhatsApp);
   const finalPrice = product.discountedPrice || calculateDiscountedPrice(product.originalPrice, product.discountPercent);
@@ -51,6 +52,12 @@ export function generateWhatsAppOrderUrl({
   }
   if (product.id) {
     msg += `🏷️ *Item Code:* #${product.id}\n`;
+  }
+  if (customer) {
+    msg += `\n👤 *Customer:* ${customer.name}\n`;
+    if (customer.email) msg += `✉️ *Email:* ${customer.email}\n`;
+    if (customer.phone) msg += `📞 *Telephone:* ${customer.phone}\n`;
+    if (customer.address) msg += `📍 *Delivery address:* ${customer.address}\n`;
   }
   msg += `\nIs this item available in stock? Could you please confirm the delivery details? Thank you!`;
 

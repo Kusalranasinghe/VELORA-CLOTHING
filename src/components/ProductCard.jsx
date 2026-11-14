@@ -1,11 +1,14 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Eye } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, MessageCircle } from 'lucide-react';
+import { isCustomerProfileComplete, useAuth } from '../context/AuthContext';
 import { useShop } from '../context/ShopContext';
 import { formatPrice, generateWhatsAppOrderUrl } from '../utils/whatsapp';
 
 export default function ProductCard({ product }) {
-  const { settings, isInWishlist, toggleWishlist } = useShop();
+  const { settings, isInWishlist, toggleWishlist, showToast } = useShop();
+  const { user, customerProfile } = useAuth();
+  const navigate = useNavigate();
   const isWishlisted = isInWishlist(product.id);
 
   // Discount calculation
@@ -20,13 +23,23 @@ export default function ProductCard({ product }) {
   const handleQuickWhatsApp = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!user || !isCustomerProfileComplete(customerProfile)) {
+      showToast(
+        user ? 'Complete your delivery details before ordering' : 'Sign in or create an account before ordering',
+        'info'
+      );
+      navigate(`/account?returnTo=${encodeURIComponent(`/product/${product.id}`)}`);
+      return;
+    }
+
     const url = generateWhatsAppOrderUrl({
       product,
       selectedSize: product.sizes?.[0] || '',
       selectedColor: product.colors?.[0] || '',
       quantity: 1,
       shopWhatsApp: settings.whatsappNumber,
-      shopName: settings.shopName
+      shopName: settings.shopName,
+      customer: customerProfile
     });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
